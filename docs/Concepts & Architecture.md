@@ -1,4 +1,4 @@
-# Distributed Cloud Resource Lock Manager — Concepts & Architecture
+# Concepts & Architecture
 
 ---
 
