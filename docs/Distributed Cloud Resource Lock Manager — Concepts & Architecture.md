@@ -112,71 +112,78 @@ The lock is **exclusive** — only one worker holds it at a time. All others wai
 
 Your system has exactly three types of processes. Each runs as a separate Python program, potentially on a separate machine.
 
-```svg
-<svg width="100%" viewBox="0 0 680 480" role="img" xmlns="http://www.w3.org/2000/svg">
-  <title>DCRLM Three-Process Architecture</title>
-  <desc>Three nodes: Naming Server, Lock Manager, and Worker Clients, showing how they communicate</desc>
+<svg width="100%" viewBox="0 0 680 520" role="img" xmlns="http://www.w3.org/2000/svg" style="">
+  <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">DCRLM three-process architecture</title>
+  <desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Three tiers: Naming Server at top, Lock Manager in middle, three Worker clients at bottom. Arrows show registration, lookup, and lock request flows.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-  </defs>
+  <mask id="imagine-text-gaps-wkkpmo" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="680" height="520" fill="white"/><rect x="286.88543701171875" y="42.212120056152344" width="106.22917175292969" height="21.57575798034668" fill="black" rx="2"/><rect x="254.87783813476562" y="63.42424011230469" width="170.24432373046875" height="19.15151596069336" fill="black" rx="2"/><rect x="288.9971618652344" y="212.2121124267578" width="102.00568389892578" height="21.57575798034668" fill="black" rx="2"/><rect x="253.95928955078125" y="233.4242401123047" width="172.08145141601562" height="19.15151596069336" fill="black" rx="2"/><rect x="85.63068389892578" y="411.2121276855469" width="68.73863983154297" height="21.57575798034668" fill="black" rx="2"/><rect x="68.98295593261719" y="430.42425537109375" width="102.03409576416016" height="19.15151596069336" fill="black" rx="2"/><rect x="305.4886474609375" y="411.2121276855469" width="69.0227279663086" height="21.57575798034668" fill="black" rx="2"/><rect x="288.98297119140625" y="430.42425537109375" width="102.03409576416016" height="19.15151596069336" fill="black" rx="2"/><rect x="524.75" y="411.2121276855469" width="70.5" height="21.57575798034668" fill="black" rx="2"/><rect x="508.98297119140625" y="430.42425537109375" width="102.03409576416016" height="19.15151596069336" fill="black" rx="2"/><rect x="354.45074462890625" y="133.4242401123047" width="99.0984878540039" height="19.15151596069336" fill="black" rx="2"/><rect x="262.3257751464844" y="331.48486328125" width="155.34849548339844" height="19.15151596069336" fill="black" rx="2"/><rect x="70" y="486.4242248535156" width="107.57386779785156" height="19.15151596069336" fill="black" rx="2"/><rect x="250.00001525878906" y="486.4242248535156" width="143.20831298828125" height="19.15151596069336" fill="black" rx="2"/></mask></defs>
 
   <!-- Naming Server -->
-  <g class="c-teal">
-    <rect x="240" y="30" width="200" height="64" rx="8" stroke-width="0.5"/>
-    <text class="th" x="340" y="55" text-anchor="middle" dominant-baseline="central">Naming Server</text>
-    <text class="ts" x="340" y="76" text-anchor="middle" dominant-baseline="central">naming_server.py · port 5000</text>
+  <g onclick="sendPrompt('How does the Naming Server work?')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="220" y="30" width="240" height="60" rx="8" stroke-width="0.5" style="fill:rgb(8, 80, 65);stroke:rgb(93, 202, 165);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="53" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159, 225, 203);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Naming Server</text>
+    <text x="340" y="73" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93, 202, 165);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">naming_server.py · port 5000</text>
   </g>
 
   <!-- Lock Manager -->
-  <g class="c-purple">
-    <rect x="240" y="200" width="200" height="64" rx="8" stroke-width="0.5"/>
-    <text class="th" x="340" y="225" text-anchor="middle" dominant-baseline="central">Lock Manager</text>
-    <text class="ts" x="340" y="246" text-anchor="middle" dominant-baseline="central">lock_server.py · dynamic port</text>
+  <g onclick="sendPrompt('How does the Lock Manager work?')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="220" y="200" width="240" height="60" rx="8" stroke-width="0.5" style="fill:rgb(60, 52, 137);stroke:rgb(175, 169, 236);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="223" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206, 203, 246);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Lock Manager</text>
+    <text x="340" y="243" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175, 169, 236);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">lock_server.py · dynamic port</text>
   </g>
 
-  <!-- Worker clients -->
-  <g class="c-amber">
-    <rect x="40" y="370" width="140" height="56" rx="8" stroke-width="0.5"/>
-    <text class="th" x="110" y="393" text-anchor="middle" dominant-baseline="central">Worker A</text>
-    <text class="ts" x="110" y="411" text-anchor="middle" dominant-baseline="central">worker_client.py</text>
-  </g>
-  <g class="c-amber">
-    <rect x="270" y="370" width="140" height="56" rx="8" stroke-width="0.5"/>
-    <text class="th" x="340" y="393" text-anchor="middle" dominant-baseline="central">Worker B</text>
-    <text class="ts" x="340" y="411" text-anchor="middle" dominant-baseline="central">worker_client.py</text>
-  </g>
-  <g class="c-amber">
-    <rect x="500" y="370" width="140" height="56" rx="8" stroke-width="0.5"/>
-    <text class="th" x="570" y="393" text-anchor="middle" dominant-baseline="central">Worker C</text>
-    <text class="ts" x="570" y="411" text-anchor="middle" dominant-baseline="central">worker_client.py</text>
+  <!-- Worker A -->
+  <g onclick="sendPrompt('What does a Worker client do?')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="40" y="400" width="160" height="56" rx="8" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="120" y="422" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Worker A</text>
+    <text x="120" y="440" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">worker_client.py</text>
   </g>
 
-  <!-- Lock Manager registers with Naming Server -->
-  <line x1="340" y1="94" x2="340" y2="198" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
-  <rect x="352" y="130" width="96" height="18" rx="3" fill="var(--color-background-primary)"/>
-  <text class="ts" x="400" y="141" text-anchor="middle" dominant-baseline="central">register / lookup</text>
+  <!-- Worker B -->
+  <g onclick="sendPrompt('What does a Worker client do?')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="260" y="400" width="160" height="56" rx="8" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="340" y="422" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Worker B</text>
+    <text x="340" y="440" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">worker_client.py</text>
+  </g>
 
-  <!-- Workers look up Naming Server -->
-  <path d="M110 370 Q110 140 238 94" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
-  <path d="M570 370 Q570 140 442 94" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <!-- Worker C -->
+  <g onclick="sendPrompt('What does a Worker client do?')" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+    <rect x="480" y="400" width="160" height="56" rx="8" stroke-width="0.5" style="fill:rgb(99, 56, 6);stroke:rgb(239, 159, 39);color:rgb(255, 255, 255);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <text x="560" y="422" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250, 199, 117);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central">Worker C</text>
+    <text x="560" y="440" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239, 159, 39);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">worker_client.py</text>
+  </g>
 
-  <!-- Workers connect to Lock Manager -->
-  <line x1="150" y1="370" x2="248" y2="264" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)"/>
-  <line x1="340" y1="370" x2="340" y2="264" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)"/>
-  <line x1="510" y1="370" x2="432" y2="264" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)"/>
+  <!-- LM registers with NS (solid, bidirectional) -->
+  <line x1="340" y1="90" x2="340" y2="198" stroke="var(--color-border-primary)" stroke-width="1" fill="none" marker-end="url(#arrow)" marker-start="url(#arrow)" style="fill:none;stroke:rgba(222, 220, 209, 0.4);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <rect x="348" y="132" width="112" height="16" rx="3" fill="var(--color-background-primary)" style="fill:rgb(48, 48, 46);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="404" y="143" text-anchor="middle" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central">register / lookup</text>
 
-  <!-- Labels -->
-  <text class="ts" x="340" y="320" text-anchor="middle" fill="var(--color-text-secondary)">lock requests · broadcasts</text>
+  <!-- Worker A lookup NS: L-shaped polyline, no fill possible -->
+  <polyline points="120,400 120,160 220,160 220,90" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:5px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Worker C lookup NS: L-shaped polyline -->
+  <polyline points="560,400 560,160 460,160 460,90" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:5px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Worker B lookup NS: straight up through gap -->
+  <polyline points="340,400 340,310 260,310 260,260" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-wkkpmo)" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:5px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Workers connect to Lock Manager (solid lines) -->
+  <line x1="180" y1="400" x2="268" y2="262" fill="none" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)" style="fill:none;stroke:rgba(222, 220, 209, 0.4);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="340" y1="400" x2="340" y2="262" fill="none" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-wkkpmo)" style="fill:none;stroke:rgba(222, 220, 209, 0.4);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="480" y1="400" x2="412" y2="262" fill="none" stroke="var(--color-border-primary)" stroke-width="1" marker-end="url(#arrow)" style="fill:none;stroke:rgba(222, 220, 209, 0.4);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Label: lock requests -->
+  <text x="340" y="345" text-anchor="middle" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">lock requests · broadcasts</text>
 
   <!-- Legend -->
-  <line x1="40" y1="455" x2="70" y2="455" stroke="var(--color-border-primary)" stroke-width="1"/>
-  <text class="ts" x="76" y="459" dominant-baseline="central">direct TCP socket</text>
-  <line x1="220" y1="455" x2="250" y2="455" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4"/>
-  <text class="ts" x="256" y="459" dominant-baseline="central">lookup only (startup)</text>
+  <line x1="40" y1="492" x2="68" y2="492" fill="none" stroke="var(--color-border-primary)" stroke-width="1" style="fill:none;stroke:rgba(222, 220, 209, 0.4);color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="74" y="496" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">direct TCP socket</text>
+  <line x1="220" y1="492" x2="248" y2="492" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="5 4" style="fill:none;stroke:rgba(222, 220, 209, 0.3);color:rgb(255, 255, 255);stroke-width:1px;stroke-dasharray:5px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <text x="254" y="496" dominant-baseline="central" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central">lookup only (on startup)</text>
 </svg>
-```
 
 ---
 

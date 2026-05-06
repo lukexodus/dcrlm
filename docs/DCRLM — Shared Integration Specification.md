@@ -57,6 +57,16 @@ SHARED_RESOURCE_NAME  = "gpu_0"
 # Worker ID tie-breaking (lower = higher priority at same timestamp)
 # Workers are identified by string; Python string comparison handles tie-breaking
 # e.g. "WA" < "WB" < "WC"
+
+# Lock timeout
+LOCK_MAX_HOLD_SEC = 30        # worker auto-released after this many seconds
+
+# Shared resource log file
+RESOURCE_LOG_FILE = "resource_access.log"
+
+# Multi-machine backup (comment out the above and uncomment these)
+# NAMING_SERVER_HOST = "192.168.1.XX"   # replace XX with Naming Server machine's LAN IP
+# NAMING_SERVER_PORT = 5000
 ```
 
 ---
@@ -291,6 +301,46 @@ Example — the message `{"type":"hello","worker_id":"WA"}` (32 bytes):
 
 **Everyone must use `send_json`/`recv_json` for all Lock Manager ↔ Worker communication.** Only the Naming Server uses raw strings (it predates the framing layer by design — simpler to test standalone).
 
+**Broadcast Snapshot Pattern (Canonical Code)**
+
+Replace the note in Section 5 with this. Member 5 copies this pattern exactly into `lock_server.py`. Member 3 reviews it.
+
+```python
+def broadcast(msg: dict, state: dict) -> None:
+    """
+    Sends msg to all connected workers.
+    RULE: Never call send_json() while holding state_lock.
+    Pattern: snapshot the client dict under the lock, then send outside it.
+    """
+    # Step 1 — snapshot under lock (fast, no I/O)
+    with state["state_lock"]:
+        recipients = list(state["clients"].items())  # [(worker_id, sock), ...]
+
+    # Step 2 — send outside lock (slow, may block)
+    for worker_id, sock in recipients:
+        try:
+            send_json(sock, msg)
+        except OSError:
+            # Socket already dead — do not crash, do not re-acquire lock here
+            # handle_worker_disconnect will clean this up when its thread exits
+            pass
+
+
+def unicast(msg: dict, worker_id: str, state: dict) -> None:
+    """
+    Sends msg to one specific worker.
+    Same snapshot rule applies — never hold state_lock while sending.
+    """
+    with state["state_lock"]:
+        sock = state["clients"].get(worker_id)
+
+    if sock is not None:
+        try:
+            send_json(sock, msg)
+        except OSError:
+            pass
+```
+
 ---
 
 ## 6. Worker ID Convention
@@ -331,11 +381,12 @@ Member 5 owns this state inside `lock_server.py`. Members 3's clock logic and Me
 ```python
 # All mutable state in lock_server.py
 
-clock        : LamportClock          # one instance, shared across all threads
-lock_queue   : list[dict]            # [{"worker_id": str, "timestamp": int}, ...]
-lock_holder  : str | None            # worker_id of current holder, or None
-clients      : dict[str, socket]     # worker_id -> connected socket
-state_lock   : threading.Lock()      # acquired before reading/writing any of the above
+clock           : LamportClock          # one instance, shared across all threads
+lock_queue      : list[dict]            # [{"worker_id": str, "timestamp": int}, ...]
+lock_holder     : str | None            # worker_id of current holder, or None
+lock_granted_at : float | None          # time.time() value when lock was granted, or None
+clients         : dict[str, socket]     # worker_id -> connected socket
+state_lock      : threading.Lock()      # acquired before reading/writing any of the above
 ```
 
 **The `state_lock` rule:** Any thread that reads or writes `lock_queue`, `lock_holder`, or `clients` must hold `state_lock`. The only exception is reading `clock.value()` for display purposes.
@@ -351,6 +402,52 @@ with state_lock:
 # send grant outside the lock — never block inside state_lock
 if grant_to:
     send_json(clients[grant_to], {"type": "lock_granted", ...})
+```
+
+## 8.1 — Broadcast and Unicast: Canonical Code Pattern
+
+This is the authoritative implementation pattern for sending messages from the Lock Manager to workers. Member 5 copies this exactly. Member 3 reviews it before integration.
+
+**The rule in one sentence:** Never call `send_json()` while holding `state_lock`.
+
+The reason: `send_json()` writes to a socket, which can block if the receiving buffer is full or if the connection is slow. If the lock is held during that block, every other thread that needs `state_lock` — including threads receiving new messages from other workers — freezes. The entire server deadlocks.
+
+The fix is a two-step snapshot pattern:
+
+```python
+def broadcast(msg: dict, state: dict) -> None:
+    """
+    Sends msg to all connected workers.
+    RULE: Never call send_json() while holding state_lock.
+    Pattern: snapshot the client dict under the lock, then send outside it.
+    """
+    # Step 1 — snapshot under lock (fast, no I/O)
+    with state["state_lock"]:
+        recipients = list(state["clients"].items())  # [(worker_id, sock), ...]
+
+    # Step 2 — send outside lock (slow, may block)
+    for worker_id, sock in recipients:
+        try:
+            send_json(sock, msg)
+        except OSError:
+            # Socket already dead — do not crash, do not re-acquire lock here.
+            # handle_worker_disconnect will clean this up when its thread exits.
+            pass
+
+
+def unicast(msg: dict, worker_id: str, state: dict) -> None:
+    """
+    Sends msg to one specific worker.
+    Same snapshot rule applies — never hold state_lock while sending.
+    """
+    with state["state_lock"]:
+        sock = state["clients"].get(worker_id)
+
+    if sock is not None:
+        try:
+            send_json(sock, msg)
+        except OSError:
+            pass
 ```
 
 ---
@@ -457,14 +554,17 @@ All arguments have defaults matching `config.py` so running with no arguments wo
 
 These are the agreed handoff tests. A member's work is not "done" until the relevant checkpoint passes. Member 5 runs all checkpoints during Phase 3.
 
-|Checkpoint|What to run|Expected result|
-|---|---|---|
-|CP-1|Start `naming_server.py`. Send `REGISTER` and `LOOKUP` manually via `netcat` or a test script|`OK` and `FOUND` responses|
-|CP-2|Run `tests/test_framing.py`|`send_json` → `recv_json` round-trip returns identical dict|
-|CP-3|Run `tests/test_clock.py`|All three Lamport rules produce correct values; thread-safety test passes|
-|CP-4|Start NS + LM. Connect one Worker. Send `hello`|LM logs worker registered; Worker receives no error|
-|CP-5|Start NS + LM. Connect three Workers. All request lock simultaneously|Lock granted to lowest `(ts, id)`; others receive `queue_update`; lock releases correctly|
-|CP-6|CP-5 with `time.sleep(2)` in one Worker's send path|Same winner as without sleep — Lamport order holds|
+| Checkpoint | What to run                                                                                   | Expected result                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| CP-1       | Start `naming_server.py`. Send `REGISTER` and `LOOKUP` manually via `netcat` or a test script | `OK` and `FOUND` responses                                                                |
+| CP-2       | Run `tests/test_framing.py`                                                                   | `send_json` → `recv_json` round-trip returns identical dict                               |
+| CP-3       | Run `tests/test_clock.py`                                                                     | All three Lamport rules produce correct values; thread-safety test passes                 |
+| CP-4       | Start NS + LM. Connect one Worker. Send `hello`                                               | LM logs worker registered; Worker receives no error                                       |
+| CP-5       | Start NS + LM. Connect three Workers. All request lock simultaneously                         | Lock granted to lowest `(ts, id)`; others receive `queue_update`; lock releases correctly |
+| CP-6       | CP-5 with `time.sleep(2)` in one Worker's send path                                           | Same winner as without sleep — Lamport order holds                                        |
+| CP-7       | Connect a Worker with an ID already in use                                                    | LM sends `error`, closes new connection, existing worker unaffected                       |
+| CP-8       | Worker holds lock for longer than `LOCK_MAX_HOLD_SEC`                                         | LM watchdog releases lock, broadcasts `lock_released`, next worker granted                |
+| CP-9       | Open `resource_access.log` after a 3-worker run                                               | No two worker IDs interleaved in the log                                                  |
 
 ---
 
@@ -472,17 +572,21 @@ These are the agreed handoff tests. A member's work is not "done" until the rele
 
 These are cross-cutting rules, not suggestions.
 
-|Member|Must never|
-|---|---|
-|All|Import anything not in the Python standard library|
-|All|Hardcode any IP, port, or name outside `config.py`|
-|All|Call `clock.receive()` on messages that have no `timestamp` field|
-|All|Modify `utils.py` without telling the whole team|
-|All|Push directly to `main` branch — use pull requests|
-|4, 5|Change the `LamportClock` interface — only Member 3 does that|
-|4, 5|Change `send_json`/`recv_json` — only Member 2 does that|
-|1|Use `send_json`/`recv_json` — Naming Server uses raw strings by design|
-|5|Read or write `lock_queue`, `lock_holder`, or `clients` without holding `state_lock`|
+| Member | Must never                                                                                       |
+| ------ | ------------------------------------------------------------------------------------------------ |
+| All    | Import anything not in the Python standard library                                               |
+| All    | Hardcode any IP, port, or name outside `config.py`                                               |
+| All    | Call `clock.receive()` on messages that have no `timestamp` field                                |
+| All    | Modify `utils.py` without telling the whole team                                                 |
+| All    | Push directly to `main` branch — use pull requests                                               |
+| 4, 5   | Change the `LamportClock` interface — only Member 3 does that                                    |
+| 4, 5   | Change `send_json`/`recv_json` — only Member 2 does that                                         |
+| 1      | Use `send_json`/`recv_json` — Naming Server uses raw strings by design                           |
+| 5      | Read or write `lock_queue`, `lock_holder`, or `clients` without holding `state_lock`             |
+| 5      | Call `send_json()` or any blocking I/O while holding `state_lock`                                |
+| 5      | Accept a second connection with an already-registered `worker_id` — reject and close immediately |
+| 4      | Assume connection success — always handle the `error` message type on connect                    |
+| All    | Hold `state_lock` for more than a snapshot read/write — no I/O, no sleeps inside the lock        |
 
 ---
 
@@ -520,6 +624,44 @@ def build_queue_update_msg(clock: LamportClock, lock_holder: str | None, queue: 
     Member 3 writes this. Member 5 calls it after every queue change.
     """
     ...
+    
+def simulate_resource_use(worker_id: str, resource: str, duration_sec: float) -> None:
+    """
+    Simulates a worker using the shared resource.
+    Writes one entry to RESOURCE_LOG_FILE per second for duration_sec seconds.
+    Each line proves exclusive access by including worker_id, resource, and a sequence number.
+
+    Log line format (one per second):
+        [TIMESTAMP] [worker_id] USING [resource] tick=N
+
+    Example:
+        [2024-01-01 12:00:01] [WA] USING gpu_0 tick=1
+        [2024-01-01 12:00:02] [WA] USING gpu_0 tick=2
+
+    Member 4 calls this from worker_client.py after receiving lock_granted.
+    The file is opened in append mode. No file locking needed —
+    mutual exclusion is guaranteed by the lock protocol itself.
+    """
+    ...
+
+def check_lock_timeout(state: dict) -> None:
+    """
+    Watchdog function. Member 5 calls this in a dedicated daemon thread
+    that runs an infinite loop with time.sleep(1).
+
+    Logic:
+        if lock_holder is not None
+        and lock_granted_at is not None
+        and (time.time() - lock_granted_at) >= LOCK_MAX_HOLD_SEC:
+            treat as if that worker sent release_lock
+            log a warning
+            broadcast lock_released
+            broadcast queue_update
+
+    Acquires state_lock only for the snapshot check and state mutation.
+    Calls broadcast() outside the lock.
+    """
+    ...
 ```
 
 ### `naming_server.py` — complete
@@ -547,6 +689,32 @@ def handle_lookup(tokens: list[str], registry: dict, registry_lock: threading.Lo
     """
     tokens = ["LOOKUP", "lock.server.main"]
     Returns "FOUND 192.168.1.10 9000" or "NOT_FOUND".
+    """
+    ...
+
+
+def handle_hello(msg: dict, conn: socket.socket, state: dict) -> bool:
+    """
+    Handles the initial hello message from a connecting worker.
+    Returns True if registration succeeded, False if rejected.
+
+    Rejection conditions:
+        - msg has no "worker_id" field
+        - worker_id is empty string
+        - worker_id already exists in state["clients"]
+
+    On rejection:
+        send error message to conn
+        close conn
+        return False
+
+    On success:
+        add worker_id -> conn to state["clients"] under state_lock
+        broadcast queue_update to all workers
+        return True
+
+    Called from handle_worker() before entering the main message loop.
+    If this returns False, handle_worker() exits immediately.
     """
     ...
 ```
@@ -646,6 +814,29 @@ def send_request(sock: socket.socket, clock: LamportClock, worker_id: str) -> No
 def send_release(sock: socket.socket, clock: LamportClock, worker_id: str) -> None:
     """Calls clock.send(), sends release_lock message."""
     ...
+    
+def handle_connect_response(sock: socket.socket) -> bool:
+    """
+    Called immediately after sending hello.
+    Waits briefly for either a queue_update (success) or error (rejection).
+
+    On error message received:
+        print the error message to terminal
+        close socket
+        return False
+
+    On queue_update received:
+        print connected successfully
+        return True
+
+    On timeout (SOCKET_TIMEOUT_SEC exceeded):
+        print connection timed out
+        close socket
+        return False
+
+    If this returns False, start_worker() exits with code 1.
+    """
+    ...
 ```
 
 ---
@@ -706,6 +897,32 @@ def get_local_ip() -> str:
         s.close()
     return ip
 ```
+
+### Resource Log File
+
+The shared resource is represented by a single append-only log file defined in `config.py` as `RESOURCE_LOG_FILE = "resource_access.log"`. When a worker holds the lock, it writes to this file once per second for the duration it holds it.
+
+**This file is the proof of mutual exclusion.** After the demo, the grader can open `resource_access.log` and verify that no two worker IDs appear interleaved — every block of lines belongs to exactly one worker before the next worker's lines begin.
+
+Correct log (mutual exclusion working):
+
+```
+[12:00:01] [WA] USING gpu_0 tick=1
+[12:00:02] [WA] USING gpu_0 tick=2
+[12:00:03] [WA] USING gpu_0 tick=3
+[12:00:04] [WB] USING gpu_0 tick=1
+[12:00:05] [WB] USING gpu_0 tick=2
+```
+
+Broken log (what a race condition looks like — must never happen):
+
+```
+[12:00:01] [WA] USING gpu_0 tick=1
+[12:00:01] [WB] USING gpu_0 tick=1   ← two workers at same time = failure
+[12:00:02] [WA] USING gpu_0 tick=2
+```
+
+The lock hold duration for the demo should be set to 5 seconds (`simulate_resource_use` called with `duration_sec=5`). The max hold timeout in `config.py` is 30 seconds, giving workers enough time to use the resource before the watchdog fires.
 
 ---
 
@@ -781,3 +998,62 @@ Merge order during integration:
 ```
 
 No member merges their own branch. Member 5 reviews and merges all branches in the order above after the checkpoint for each one passes.
+
+---
+
+## 23. Report Structure and Ownership
+
+### Section Ownership
+
+| Report Section                            | Owner                        | Approximate length                      |
+| ----------------------------------------- | ---------------------------- | --------------------------------------- |
+| Title page, table of contents             | Member 5 (assembler)         | —                                       |
+| 1. Introduction & project overview        | Member 5                     | 300–400 words                           |
+| 2. System architecture & diagram          | Member 1                     | 300–400 words + diagram as embedded PNG |
+| 3. Naming implementation                  | Member 1                     | 400–500 words                           |
+| 4. Message-oriented communication         | Member 2                     | 400–500 words                           |
+| 5. Lamport clock & synchronization        | Member 3                     | 400–500 words                           |
+| 6. Individual reflections                 | Each member writes their own | minimum 200 words each                  |
+| 7. Conclusion                             | Member 4                     | 200–300 words                           |
+| Appendix: message schema                  | Member 2                     | paste from spec                         |
+| Appendix: test results & log file excerpt | Member 5                     | paste from demo run                     |
+
+### Assembly
+
+Member 5 assembles the final DOCX. Each member submits their section as a plain `.txt` or `.docx` fragment by an agreed internal deadline (recommended: 48 hours before submission). Member 5 applies consistent formatting, embeds the architecture diagram PNG, pastes the appendices, and does a final proofread.
+
+### Reflection Minimum (200 words each)
+
+Each reflection must address all three of these points or it does not meet the minimum:
+
+- What specific technical concept was hardest to understand and how did you resolve it
+- What you would do differently if you rebuilt your component from scratch
+- How your component depended on or was depended on by other members' work
+
+---
+
+## 24. Demo Script (new, assigned to Member 5)
+
+Member 5 owns this script. Rehearse it at least once end-to-end before the presentation day.
+
+```
+[0:00] Start naming_server.py. Wait for ready line.
+[0:30] Start lock_server.py. Wait for ready line. Show terminal: "Registered as lock.server.main."
+[1:00] Start Worker A (terminal 3). Show lookup + connect.
+[1:30] Start Worker B (terminal 4). Start Worker C (terminal 5).
+[2:00] On Worker A: type "request". On Worker B: type "request". On Worker C: type "request".
+       — All three hit enter as close to simultaneously as possible.
+[2:15] Point to Lock Manager terminal. Show queue printout with Lamport order.
+       Explain: "WA, WB, WC are sorted by (timestamp, worker_id). The winner is at position 0."
+[2:30] Show Worker A terminal: "Lock granted." Show resource_access.log updating live (use: tail -f resource_access.log).
+[3:00] Worker A: type "release". Show WB granted immediately. Show log file — no interleaving.
+[3:30] Worker B: type "release". Worker C granted.
+[4:00] Worker C: type "release". Queue empty. All workers show idle.
+[4:30] LAMPORT DEMO: restart the demo. Before Worker B types "request", add time.sleep(2) live
+       (or use a pre-prepared slow_worker.py). Show that despite the delay,
+       if WB's Lamport timestamp is lower, WB still wins the queue.
+[7:00] Show resource_access.log to professor. Point out clean non-interleaved blocks.
+[8:00] CP-7 demo: open a 6th terminal, start Worker A again (duplicate ID).
+       Show error message. Show original Worker A is unaffected.
+[9:00] Questions buffer.
+```

@@ -20,11 +20,11 @@ Build three cooperating programs that together enforce a rule: **only one worker
 
 The three pillars of the solution map directly to the three graded requirements:
 
-|Pillar|Problem it solves|Mechanism|
-|---|---|---|
-|Naming|Workers cannot hardcode server addresses|A directory server resolves logical names to IPs|
-|Messaging|Machines can only communicate via network|JSON messages over TCP sockets|
-|Synchronization|Physical clocks cannot order events fairly|Lamport Logical Clocks on every node|
+| Pillar          | Problem it solves                          | Mechanism                                        |
+| --------------- | ------------------------------------------ | ------------------------------------------------ |
+| Naming          | Workers cannot hardcode server addresses   | A directory server resolves logical names to IPs |
+| Messaging       | Machines can only communicate via network  | JSON messages over TCP sockets                   |
+| Synchronization | Physical clocks cannot order events fairly | Lamport Logical Clocks on every node             |
 
 ---
 
