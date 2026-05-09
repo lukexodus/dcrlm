@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 # Member 2 — send_json, recv_json, get_local_ip
 # Member 3 — LamportClock, sort_queue, build_queue_update_msg,
-#             simulate_resource_use, check_lock_timeout
+# simulate_resource_use, check_lock_timeout
 
 import socket
 import threading
@@ -13,115 +14,70 @@ from datetime import datetime
 from config import *
 
 
-#Member 2
+# Member 2 — Networking Functions
 def send_json(sock, msg):
     """
-    Send a JSON message using length-prefixed framing.
+    Send JSON using length-prefixed framing.
 
-    Message format:
+    Format:
     [4-byte big-endian length][JSON payload]
     """
 
     try:
-        # Convert dictionary to JSON bytes
         payload = json.dumps(msg).encode("utf-8")
-
-        # Create 4-byte big-endian header
         header = struct.pack(">I", len(payload))
 
-        # Send header first
         sock.sendall(header)
-
-        # Send payload second
         sock.sendall(payload)
 
     except OSError as e:
-        raise ConnectionError(
-            f"Failed to send message: {e}"
-        )
+        raise ConnectionError(f"send_json failed: {e}")
 
 
 def recv_json(sock):
     """
-    Receive a JSON message using length-prefixed framing.
-
-    Steps:
-    1. Read exactly 4 bytes header
-    2. Decode payload size
-    3. Read exactly N bytes payload
-    4. Deserialize JSON
+    Receive JSON using length-prefixed framing.
+    Handles TCP fragmentation correctly.
     """
-    
-    # Read 4-byte header
+
+    # Read header (4 bytes)
     header = b""
-
     while len(header) < 4:
-
         chunk = sock.recv(4 - len(header))
-
-        # Socket closed unexpectedly
         if chunk == b"":
-            raise ConnectionError(
-                "Socket closed while reading header"
-            )
-
+            raise ConnectionError("Socket closed")
         header += chunk
 
-    # Decode big-endian unsigned int
-    payload_length = struct.unpack(">I", header)[0]
+    msg_length = struct.unpack(">I", header)[0]
 
     # Read payload
-    payload = b""
-
-    while len(payload) < payload_length:
-
-        chunk = sock.recv(
-            payload_length - len(payload)
-        )
-
-        # Socket closed unexpectedly
+    data = b""
+    while len(data) < msg_length:
+        chunk = sock.recv(msg_length - len(data))
         if chunk == b"":
-            raise ConnectionError(
-                "Socket closed while reading payload"
-            )
+            raise ConnectionError("Socket closed")
+        data += chunk
 
-        payload += chunk
-
-    # Decode JSON
     try:
-        return json.loads(
-            payload.decode("utf-8")
-        )
-
+        return json.loads(data.decode("utf-8"))
     except json.JSONDecodeError:
-        raise ValueError(
-            "Received invalid JSON payload"
-        )
+        raise ValueError("Invalid JSON received")
 
 
 def get_local_ip():
     """
-    Return the machine's local IP address.
-
-    Uses a UDP socket trick to determine
-    the outgoing network interface.
+    Get local IP without sending real traffic.
     """
 
-    sock = socket.socket(
-        socket.AF_INET,
-        socket.SOCK_DGRAM
-    )
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     try:
-        # No actual traffic is sent
-        sock.connect(("8.8.8.8", 80))
-
-        local_ip = sock.getsockname()[0]
-
+        s.connect(("8.8.8.8", 80))  # no traffic actually sent
+        ip = s.getsockname()[0]
     finally:
-        sock.close()
+        s.close()
 
-    return local_ip
+    return ip
 
 #member 3
 class LamportClock:
