@@ -13,8 +13,115 @@ from datetime import datetime
 from config import *
 
 
+#Member 2
+def send_json(sock, msg):
+    """
+    Send a JSON message using length-prefixed framing.
+
+    Message format:
+    [4-byte big-endian length][JSON payload]
+    """
+
+    try:
+        # Convert dictionary to JSON bytes
+        payload = json.dumps(msg).encode("utf-8")
+
+        # Create 4-byte big-endian header
+        header = struct.pack(">I", len(payload))
+
+        # Send header first
+        sock.sendall(header)
+
+        # Send payload second
+        sock.sendall(payload)
+
+    except OSError as e:
+        raise ConnectionError(
+            f"Failed to send message: {e}"
+        )
 
 
+def recv_json(sock):
+    """
+    Receive a JSON message using length-prefixed framing.
+
+    Steps:
+    1. Read exactly 4 bytes header
+    2. Decode payload size
+    3. Read exactly N bytes payload
+    4. Deserialize JSON
+    """
+    
+    # Read 4-byte header
+    header = b""
+
+    while len(header) < 4:
+
+        chunk = sock.recv(4 - len(header))
+
+        # Socket closed unexpectedly
+        if chunk == b"":
+            raise ConnectionError(
+                "Socket closed while reading header"
+            )
+
+        header += chunk
+
+    # Decode big-endian unsigned int
+    payload_length = struct.unpack(">I", header)[0]
+
+    # Read payload
+    payload = b""
+
+    while len(payload) < payload_length:
+
+        chunk = sock.recv(
+            payload_length - len(payload)
+        )
+
+        # Socket closed unexpectedly
+        if chunk == b"":
+            raise ConnectionError(
+                "Socket closed while reading payload"
+            )
+
+        payload += chunk
+
+    # Decode JSON
+    try:
+        return json.loads(
+            payload.decode("utf-8")
+        )
+
+    except json.JSONDecodeError:
+        raise ValueError(
+            "Received invalid JSON payload"
+        )
+
+
+def get_local_ip():
+    """
+    Return the machine's local IP address.
+
+    Uses a UDP socket trick to determine
+    the outgoing network interface.
+    """
+
+    sock = socket.socket(
+        socket.AF_INET,
+        socket.SOCK_DGRAM
+    )
+
+    try:
+        # No actual traffic is sent
+        sock.connect(("8.8.8.8", 80))
+
+        local_ip = sock.getsockname()[0]
+
+    finally:
+        sock.close()
+
+    return local_ip
 
 #member 3
 class LamportClock:
