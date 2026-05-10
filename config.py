@@ -7,6 +7,9 @@ NAMING_SERVER_PORT = 5000
 # Lock Server registration name
 LOCK_SERVER_NAME = "lock.server.main"
 
+# Lock Server default port
+LOCK_SERVER_DEFAULT_PORT = 9000
+
 # Networking
 MAX_CONNECTIONS = 10
 SOCKET_TIMEOUT_SEC = 5
