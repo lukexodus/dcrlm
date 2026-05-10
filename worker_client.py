@@ -10,6 +10,7 @@ import argparse
 from utils import LamportClock, send_json, recv_json, get_local_ip
 from config import *
 
+
 def resolve_lock_server(ns_host, ns_port):
     """
     Resolve the Lock Server address from the Naming Server.
@@ -53,6 +54,50 @@ def resolve_lock_server(ns_host, ns_port):
     finally:
         # Always close socket
         ns_sock.close()
+
+
+def send_request(sock, clock, worker_id):
+    """
+    Send a lock request message to the Lock Manager.
+    """
+
+    # Increment Lamport clock before sending
+    timestamp = clock.send()
+
+    # Build request message
+    msg = {
+        "type": "request_lock",
+        "worker_id": worker_id,
+        "timestamp": timestamp,
+        "resource": SHARED_RESOURCE_NAME
+    }
+
+    # Send message
+    send_json(sock, msg)
+
+    print(f"[WC][{worker_id}] Sent request_lock at timestamp {timestamp}")
+
+
+def send_release(sock, clock, worker_id):
+    """
+    Send a lock release message to the Lock Manager.
+    """
+
+    # Increment Lamport clock before sending
+    timestamp = clock.send()
+
+    # Build release message
+    msg = {
+        "type": "release_lock",
+        "worker_id": worker_id,
+        "timestamp": timestamp
+    }
+
+    # Send message
+    send_json(sock, msg)
+
+    print(f"[WC][{worker_id}] Sent release_lock at timestamp {timestamp}")
+
 
 if __name__ == "__main__":
 
