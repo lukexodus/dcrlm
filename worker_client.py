@@ -98,6 +98,41 @@ def send_release(sock, clock, worker_id):
 
     print(f"[WC][{worker_id}] Sent release_lock at timestamp {timestamp}")
 
+def listener_thread(sock, clock, state):
+    """
+    Stub listener thread.
+    Receives messages from the Lock Manager and prints them.
+    """
+
+    while True:
+        try:
+            msg = recv_json(sock)
+
+            if "timestamp" in msg:
+                clock.receive(msg["timestamp"])
+
+            print(f"\n[WC][RECEIVED] {msg}")
+
+        except ConnectionError:
+            print("\n[WC][ERROR] Disconnected from Lock Manager.")
+            return
+
+
+def input_loop(sock, clock, worker_id, state):
+    """
+    Stub input loop.
+    Reads user commands from the terminal.
+    """
+
+    while True:
+        command = input("> ").strip().lower()
+
+        if command == "quit":
+            print("Goodbye")
+            sys.exit(0)
+
+        print("TODO: handle command")
+
 
 if __name__ == "__main__":
 
