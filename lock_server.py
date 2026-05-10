@@ -330,8 +330,8 @@ def process_request(msg, state):
     worker_id = msg.get("worker_id")
     timestamp = msg.get("timestamp", 0)
 
-    # Apply Lamport receive rule
-    state["clock"].receive(timestamp)
+    # Note: clock.receive() is called in handle_worker immediately after
+    # recv_json() per the Section 4 usage contract. Do NOT call it again here.
 
     # Variables set inside the lock, used outside for sends
     grant_to        = None
@@ -424,8 +424,8 @@ def process_release(msg, state):
     worker_id = msg.get("worker_id")
     timestamp = msg.get("timestamp", 0)
 
-    # Apply Lamport receive rule
-    state["clock"].receive(timestamp)
+    # Note: clock.receive() is called in handle_worker immediately after
+    # recv_json() per the Section 4 usage contract. Do NOT call it again here.
 
     # Variables set inside the lock
     previous_holder = None
