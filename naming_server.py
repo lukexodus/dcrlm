@@ -123,4 +123,3 @@ if __name__ == "__main__":
 	parser.add_argument("--port", type=int, default=NAMING_SERVER_PORT)
 	args = parser.parse_args()
 	start_naming_server(args.host, args.port)
-
