@@ -1,0 +1,5 @@
+INITIAL_CLOCK_VALUE = 0
+
+LOCK_MAX_HOLD_SEC = 30
+
+RESOURCE_LOG_FILE = "resource_access.log"
