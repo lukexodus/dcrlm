@@ -209,7 +209,7 @@ Create the `tests/` directory with three empty files: `test_clock.py`, `test_fra
 
 Push to `member5/lock-server`. Open a pull request into `main` titled `[SKELETON] Project structure`. Merge it immediately — this is the base everyone else branches from.
 
-**Deliverable:** All members pull `main` and confirm the skeleton is on their machine.
+**Deliverable:** All members pull `main` and confirm the skeleton is on their machine.  **(COMPLETED)**
 
 ---
 
@@ -238,6 +238,8 @@ All five tasks in Phase 2 run fully in parallel. No member depends on another's 
 ---
 
 ### Member 1 — Tasks 2.1 through 2.5
+
+**Status:** Completed — Naming Server implemented and `tests/test_naming.py` passes locally.  **(COMPLETED)**
 
 #### Task 2.1 — Implement `handle_register`
 
@@ -345,6 +347,8 @@ Add the `argparse` block at the bottom of `naming_server.py` per the CLI spec in
 
 ### Member 2 — Tasks 2.6 through 2.9
 
+**Status:** Completed — All framing functions (`send_json`, `recv_json`, `get_local_ip`) and `tests/test_framing.py` implemented and tested.  **(COMPLETED)**
+
 #### Task 2.6 — Implement `send_json`
 
 **File:** `utils.py` **Depends on:** 1.5 **Parallel with:** All other Phase 2 tasks
@@ -418,6 +422,8 @@ Write all four test functions from Section 21. Use `socket.socketpair()` to get 
 ---
 
 ### Member 3 — Tasks 2.10 through 2.14
+
+**Status:** Completed — `LamportClock` class with all methods, `sort_queue`, `build_queue_update_msg`, `simulate_resource_use`, `check_lock_timeout`, and `tests/test_clock.py` all implemented and tested.  **(COMPLETED)**
 
 #### Task 2.10 — Implement `LamportClock.__init__` and `value`
 
@@ -541,6 +547,8 @@ Write all seven test functions from Section 21.
 
 ### Member 4 — Tasks 2.15 through 2.17
 
+**Status:** Skeleton only — file structure and imports present; functions not yet implemented. **(NOT STARTED)**
+
 #### Task 2.15 — Implement `resolve_lock_server`
 
 **File:** `worker_client.py` **Depends on:** 1.5 **Parallel with:** All other Phase 2 tasks
@@ -609,6 +617,8 @@ Implement stubs only — enough to compile and run without errors but with `TODO
 ---
 
 ### Member 5 — Tasks 2.18 through 2.21
+
+**Status:** Skeleton only — file structure and imports present; functions not yet implemented. **(NOT STARTED)**
 
 #### Task 2.18 — Implement `register_with_naming_server`
 
