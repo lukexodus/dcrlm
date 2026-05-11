@@ -343,8 +343,8 @@ def check_lock_timeout(state, broadcast_fn):
     # to avoid deadlocks
 
     # Notify all workers that lock was released
-    broadcast_fn(lock_released_msg)
+    broadcast_fn(lock_released_msg, state)
 
     # Notify all workers about updated queue state
-    broadcast_fn(queue_update_msg)
+    broadcast_fn(queue_update_msg, state)
 
